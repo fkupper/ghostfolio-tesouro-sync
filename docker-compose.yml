@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  tesouro-ghostfolio:
+    image: ghcr.io/seu-usuario/nome-do-repo:latest
+    # build: .
+    container_name: tesouro-ghostfolio-sync
+    restart: unless-stopped
+    environment:
+      - GHOSTFOLIO_URL=http://ip-do-seu-ghostfolio:3333
+      - GHOSTFOLIO_TOKEN=seu_security_token_aqui
+      - TZ=America/Sao_Paulo # Para que o log do cron fique no horário do Brasil
