@@ -46,7 +46,10 @@ def obter_ativos_tesouro_ghostfolio(jwt_token):
         except Exception as e:
             print(f"⚠️ Erro ao ler mapping.json: {e}")
 
-    endpoint = f"{GHOSTFOLIO_URL}/api/v1/admin/market-data"
+    # =========================================================
+    # CORREÇÃO: O Ghostfolio moveu a rota administrativa para:
+    # =========================================================
+    endpoint = f"{GHOSTFOLIO_URL}/api/v1/asset-profiles"
     headers = {"Authorization": f"Bearer {jwt_token}"}
     
     ativos_para_importar = []
@@ -56,7 +59,13 @@ def obter_ativos_tesouro_ghostfolio(jwt_token):
         response.raise_for_status()
         
         dados = response.json()
-        lista_ativos = dados.get('marketData', dados) if isinstance(dados, dict) else dados
+        
+        # Como a rota mudou, garantimos que ele pegue a lista 
+        # venha ela solta ou dentro da chave 'assetProfiles'
+        if isinstance(dados, dict):
+            lista_ativos = dados.get('assetProfiles', dados.get('marketData', []))
+        else:
+            lista_ativos = dados
         
         for ativo in lista_ativos:
             symbol_original = ativo.get('symbol', '')
@@ -66,7 +75,6 @@ def obter_ativos_tesouro_ghostfolio(jwt_token):
             
             if symbol_limpo.startswith("TD."):
                 string_referencia = symbol_limpo
-            
             elif symbol_original in mapa_customizado:
                 string_referencia = mapa_customizado[symbol_original].replace("GF_", "")
                 
@@ -77,7 +85,7 @@ def obter_ativos_tesouro_ghostfolio(jwt_token):
                     data_vencimento = partes[2].replace("-", "/")
                     
                     ativos_para_importar.append({
-                        "symbol_original": symbol_original, 
+                        "symbol_original": symbol_original,
                         "tipo_titulo": tipo_titulo,
                         "data_vencimento": data_vencimento
                     })
