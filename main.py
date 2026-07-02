@@ -46,9 +46,6 @@ def obter_ativos_tesouro_ghostfolio(jwt_token):
         except Exception as e:
             print(f"⚠️ Erro ao ler mapping.json: {e}")
 
-    # =========================================================
-    # CORREÇÃO: O Ghostfolio moveu a rota administrativa para:
-    # =========================================================
     endpoint = f"{GHOSTFOLIO_URL}/api/v1/asset-profiles"
     headers = {"Authorization": f"Bearer {jwt_token}"}
     
@@ -60,8 +57,6 @@ def obter_ativos_tesouro_ghostfolio(jwt_token):
         
         dados = response.json()
         
-        # Como a rota mudou, garantimos que ele pegue a lista 
-        # venha ela solta ou dentro da chave 'assetProfiles'
         if isinstance(dados, dict):
             lista_ativos = dados.get('assetProfiles', dados.get('marketData', []))
         else:
