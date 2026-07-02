@@ -2,11 +2,15 @@ version: '3.8'
 
 services:
   tesouro-ghostfolio:
-    image: ghcr.io/seu-usuario/nome-do-repo:latest
-    # build: .
+    image: ghcr.io/fkupper/ghostfolio-tesouro-sync
     container_name: tesouro-ghostfolio-sync
     restart: unless-stopped
     environment:
-      - GHOSTFOLIO_URL=http://ip-do-seu-ghostfolio:3333
-      - GHOSTFOLIO_TOKEN=seu_security_token_aqui
-      - TZ=America/Sao_Paulo # Para que o log do cron fique no horário do Brasil
+      - GHOSTFOLIO_URL=http://seu-ip-ou-dominio:3333
+      - GHOSTFOLIO_TOKEN=seu_security_token_de_acesso
+      - TZ=America/Sao_Paulo
+    #volumes:
+      # Opcional: cache local para evitar baixar os arquivos do tesouro repetidas vezes no mesmo dia caso necessario rodar novamente
+      # - ./data_cache:/app/cache
+      # Opcional: Arquivo para vincular nomes customizados existentes ao padrão do script
+      # - ./mapping.json:/app/mapping.json
