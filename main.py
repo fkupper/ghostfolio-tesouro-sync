@@ -183,7 +183,7 @@ def sincronizar_ativo(ativo_ghostfolio, df_historico_completo, jwt_token):
     df_filtrado = df_historico_completo[filtro].sort_values(by='Data Base')
     
     if df_filtrado.empty:
-        print(f"⚠️ Histórico não encontrado no Governo para '{tipo_no_csv}' com vencimento em {vencimento_str}.")
+        notificar_erro(f"⚠️ Histórico não encontrado no Governo para '{tipo_no_csv}' com vencimento em {vencimento_str}.")
         return
 
     market_data_payload = []
