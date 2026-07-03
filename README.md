@@ -1,4 +1,10 @@
-# Tesouro Direto to Ghostfolio Sync 🇧🇷👻
+# Dados do Tesouro Direto automaticamente no Ghostfolio 🇧🇷👻
+
+![Última Versão](https://img.shields.io/github/v/release/fkupper/ghostfolio-tesouro-sync?style=for-the-badge&color=blue)
+![Status do Build](https://img.shields.io/github/actions/workflow/status/fkupper/ghostfolio-tesouro-sync/docker-publish.yml?style=for-the-badge&logo=github)
+![Versão Python](https://img.shields.io/badge/python-3.11-blue?style=for-the-badge&logo=python)
+![Tamanho do Repositório](https://img.shields.io/github/repo-size/fkupper/ghostfolio-tesouro-sync?style=for-the-badge)
+![Issues Abertas](https://img.shields.io/github/issues/fkupper/ghostfolio-tesouro-sync?style=for-the-badge&color=red)
 
 Um script em Python dockerizado que sincroniza automaticamente os preços e históricos do **Tesouro Direto** (via Tesouro Transparente/CKAN) diretamente para a sua instância do **Ghostfolio**.
 
@@ -6,12 +12,14 @@ Como o Ghostfolio não suporta ativos brasileiros sem ticker internacional de fo
 
 ## 🚀 Como funciona?
 
-O script roda em background através de um container Docker (usando o `cron` do Linux). De segunda a sexta-feira, ele:
+Ao iniciar o container, o script executa uma **sincronização imediata**. Depois disso, ele fica rodando silenciosamente em background através de um agendador (`cron` do Linux), executando as atualizações de segunda a sexta-feira (após o fechamento do mercado). Durante a execução, ele:
+
 1. Conecta-se à sua instância do Ghostfolio e autentica via API.
 2. Procura ativos manuais que tenham um **padrão específico no campo Symbol** (ou definidos via arquivo de mapeamento).
-3. Busca a URL dinâmica e baixa a planilha oficial atualizada do Tesouro Direto 
+3. Busca a URL dinâmica e baixa a planilha oficial atualizada do Tesouro Direto.
 4. Processa os dados de compra e traduz as nomenclaturas.
 5. Envia o histórico limpo para o Ghostfolio.
+6. Notifica o usuário em caso de erros (se configurado).
 
 ---
 
@@ -60,11 +68,23 @@ Basta criar um arquivo chamado `mapping.json` na mesma pasta do seu `docker-comp
 
 ---
 
+## 🔔 Notificações (Opcional)
+
+Para não falhar silenciosamente, o script pode te alertar em tempo real caso encontre algum erro de conexão, mudança na API do governo ou falhas de configuração. 
+
+Atualmente suportamos nativamente os seguintes serviços (basta adicionar as variáveis correspondentes no seu `docker-compose.yml`):
+
+* **Webhooks (Discord / Slack):** Preencha a variável `WEBHOOK_URL`.
+* **Telegram:** Preencha as variáveis `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID`.
+* **ntfy (ntfy.sh ou self-hosted):** Preencha `NTFY_URL` e, se sua instância for protegida, `NTFY_TOKEN`.
+
+---
+
 ## 🐳 Instalação (Docker Compose)
 
 Você pode rodar este sincronizador junto com a sua stack do Ghostfolio (ou separadamente) usando o `docker-compose.yml`.
 
-1. Pegue a URL do seu Ghostfolio e seu token de acesso
+1. Pegue a URL do seu Ghostfolio e seu token de acesso (`Account > Security > Security Token`).
 2. Crie a pasta `data_cache` e o arquivo `mapping.json` (opcional).
 3. Use o arquivo `docker-compose.yml` abaixo:
 
@@ -73,15 +93,23 @@ version: '3.8'
 
 services:
   tesouro-ghostfolio:
-    image: ghcr.io/fkupper/ghostfolio-tesouro-sync
+    image: ghcr.io/fkupper/ghostfolio-tesouro-sync:latest
     container_name: tesouro-ghostfolio-sync
     restart: unless-stopped
     environment:
       - GHOSTFOLIO_URL=http://seu-ip-ou-dominio:3333
       - GHOSTFOLIO_TOKEN=seu_security_token_de_acesso
       - TZ=America/Sao_Paulo
+      
+      # --- NOTIFICAÇÕES (Descomente o que for usar) ---
+      # - WEBHOOK_URL=[https://discord.com/api/webhooks/](https://discord.com/api/webhooks/)...
+      # - TELEGRAM_TOKEN=seu_token_do_bot
+      # - TELEGRAM_CHAT_ID=seu_chat_id
+      # - NTFY_URL=[https://ntfy.sh/seu_topico_secreto](https://ntfy.sh/seu_topico_secreto)
+      # - NTFY_TOKEN=seu_token_de_acesso (se self-hosted protegido)
+      
     #volumes:
-      # Opcional: cache local para evitar baixar os arquivos do tesouro repetidas vezes no mesmo dia caso necessario rodar novamente
+      # Opcional: cache local para evitar baixar os arquivos do tesouro repetidas vezes
       # - ./data_cache:/app/cache
       # Opcional: Arquivo para vincular nomes customizados existentes ao padrão do script
       # - ./mapping.json:/app/mapping.json
@@ -93,4 +121,4 @@ services:
 docker compose up -d
 ```
 
-O container ficará rodando silenciosamente e executará a sincronização todos os dias úteis durante a noite (horário em que as taxas do mercado já fecharam).
+Pronto! Ele fará a primeira sincronização na hora e depois agendará as próximas atualizações noturnas automaticamente.
