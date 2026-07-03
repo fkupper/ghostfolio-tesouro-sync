@@ -210,7 +210,7 @@ def sincronizar_ativo(ativo_ghostfolio, df_historico_completo, jwt_token):
         
 def notificar_erro(mensagem):
     """Envia uma notificação caso as variáveis de ambiente estejam configuradas"""
-    print(erro_msg)
+    print(mensagem)
     # 1. Tentativa via Webhook (Discord, Slack, etc)
     webhook_url = os.getenv("WEBHOOK_URL")
     if webhook_url:
