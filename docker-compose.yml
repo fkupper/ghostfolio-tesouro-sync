@@ -9,6 +9,16 @@ services:
       - GHOSTFOLIO_URL=http://seu-ip-ou-dominio:3333
       - GHOSTFOLIO_TOKEN=seu_security_token_de_acesso
       - TZ=America/Sao_Paulo
+      # --- NOTIFICAÇÕES (Opcionais) ---
+      # Para usar Discord/Slack:
+      # - WEBHOOK_URL=https://discord.com/api/webhooks/...
+      # Para usar Telegram:
+      # - TELEGRAM_TOKEN=...
+      # - TELEGRAM_CHAT_ID=...
+      # Para usar ntfy:
+      # - NTFY_URL=https://ntfy.sh/seu_topico_secreto
+      # Opcional: Apenas se o seu servidor ntfy exigir autenticação (Access Token)
+      # - NTFY_TOKEN=tk_12345abcde
     #volumes:
       # Opcional: cache local para evitar baixar os arquivos do tesouro repetidas vezes no mesmo dia caso necessario rodar novamente
       # - ./data_cache:/app/cache
