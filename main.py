@@ -31,7 +31,7 @@ def autenticar_ghostfolio():
         
     except Exception as e:
         erro_msg = response.text if 'response' in locals() else e
-        print(f"❌ Erro ao autenticar no Ghostfolio: {erro_msg}")
+        notificar_erro(f"❌ Erro ao autenticar no Ghostfolio: {erro_msg}")
         return None
 
 def obter_ativos_tesouro_ghostfolio(jwt_token):
@@ -44,7 +44,7 @@ def obter_ativos_tesouro_ghostfolio(jwt_token):
                 mapa_customizado = json.load(f)
             print(f"📄 Arquivo de mapeamento detectado! ({len(mapa_customizado)} regras locais)")
         except Exception as e:
-            print(f"⚠️ Erro ao ler mapping.json: {e}")
+            notificar_erro(f"⚠️ Erro ao ler mapping.json: {e}")
 
     endpoint = f"{GHOSTFOLIO_URL}/api/v1/asset-profiles"
     headers = {"Authorization": f"Bearer {jwt_token}"}
@@ -89,7 +89,7 @@ def obter_ativos_tesouro_ghostfolio(jwt_token):
         return ativos_para_importar
 
     except Exception as e:
-        print(f"❌ Erro ao comunicar com Ghostfolio: {e}")
+        notificar_erro(f"❌ Erro ao comunicar com Ghostfolio: {e}")
         return []
 
 def obter_url_csv_atualizada():
@@ -109,7 +109,7 @@ def obter_url_csv_atualizada():
                 
         raise ValueError("Nenhum arquivo CSV encontrado no pacote do governo.")
     except Exception as e:
-        print(f"❌ Erro ao buscar URL na API do governo: {e}")
+        notificar_erro(f"❌ Erro ao buscar URL na API do governo: {e}")
         return None
 
 def baixar_e_preparar_historico(url_csv):
@@ -133,7 +133,7 @@ def baixar_e_preparar_historico(url_csv):
                     f.write(chunk)
             print("✅ Download concluído e salvo no cache!")
         except Exception as e:
-            print(f"❌ Erro ao baixar a planilha: {e}")
+            notificar_erro(f"❌ Erro ao baixar a planilha: {e}")
             return None
 
     # 2. LIMPEZA (Rotina para manter apenas os 10 arquivos mais recentes preservados)
@@ -153,7 +153,7 @@ def baixar_e_preparar_historico(url_csv):
         df = df[df['PU Compra Manha'] > 0]
         return df
     except Exception as e:
-        print(f"❌ Erro ao processar a planilha do cache: {e}")
+        notificar_erro(f"❌ Erro ao processar a planilha do cache: {e}")
         return None
 
 def sincronizar_ativo(ativo_ghostfolio, df_historico_completo, jwt_token):
@@ -176,7 +176,7 @@ def sincronizar_ativo(ativo_ghostfolio, df_historico_completo, jwt_token):
     try:
         vencimento_dt = pd.to_datetime(vencimento_str, format='%d/%m/%Y')
     except Exception as e:
-        print(f"⚠️ Erro ao converter a data {vencimento_str}: {e}")
+        notificar_erro(f"⚠️ Erro ao converter a data {vencimento_str}: {e}")
         return
     
     filtro = (df_historico_completo['Tipo Titulo'] == tipo_no_csv) & (df_historico_completo['Data Vencimento'] == vencimento_dt)
@@ -206,8 +206,58 @@ def sincronizar_ativo(ativo_ghostfolio, df_historico_completo, jwt_token):
     if response.status_code in [200, 201]:
         print(f"✅ {len(market_data_payload)} dias de histórico sincronizados com sucesso!")
     else:
-        print(f"❌ Falha na sincronização de {simbolo}: {response.status_code} - {response.text}")
+        notificar_erro(f"❌ Falha na sincronização de {simbolo}: {response.status_code} - {response.text}")
+        
+def notificar_erro(mensagem):
+    """Envia uma notificação caso as variáveis de ambiente estejam configuradas"""
+    print(erro_msg)
+    # 1. Tentativa via Webhook (Discord, Slack, etc)
+    webhook_url = os.getenv("WEBHOOK_URL")
+    if webhook_url:
+        try:
+            # O Discord usa 'content', o Slack usa 'text'. 
+            # Vamos mandar os dois para garantir compatibilidade genérica.
+            payload = {
+                "content": f"🚨 **Erro no Tesouro-Ghostfolio:**\n{mensagem}",
+                "text": f"🚨 *Erro no Tesouro-Ghostfolio:*\n{mensagem}"
+            }
+            requests.post(webhook_url, json=payload, timeout=10)
+        except Exception as e:
+            print(f"⚠️ Falha ao notificar via Webhook: {e}")
 
+    # 2. Tentativa via Telegram
+    telegram_token = os.getenv("TELEGRAM_TOKEN")
+    telegram_chat = os.getenv("TELEGRAM_CHAT_ID")
+    if telegram_token and telegram_chat:
+        try:
+            url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
+            payload = {
+                "chat_id": telegram_chat, 
+                "text": f"🚨 *Erro no Tesouro-Ghostfolio:*\n{mensagem}",
+                "parse_mode": "Markdown"
+            }
+            requests.post(url, json=payload, timeout=10)
+        except Exception as e:
+            print(f"⚠️ Falha ao notificar via Telegram: {e}")
+
+    # 3. Tentativa via ntfy (ntfy.sh ou Self-Hosted)
+    ntfy_url = os.getenv("NTFY_URL")
+    if ntfy_url:
+        try:
+            headers = {
+                "Title": "Erro Sincronização Tesouro",
+                "Priority": "high",
+                "Tags": "rotating_light,ghost"
+            }
+            
+            ntfy_token = os.getenv("NTFY_TOKEN")
+            if ntfy_token:
+                headers["Authorization"] = f"Bearer {ntfy_token}"
+                
+            requests.post(ntfy_url, data=mensagem.encode('utf-8'), headers=headers, timeout=10)
+        except Exception as e:
+            print(f"⚠️ Falha ao notificar via ntfy: {e}")
+            
 # ==========================================
 # EXECUÇÃO PRINCIPAL
 # ==========================================
