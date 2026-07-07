@@ -9,6 +9,9 @@ services:
       - GHOSTFOLIO_URL=http://seu-ip-ou-dominio:3333
       - GHOSTFOLIO_TOKEN=seu_security_token_de_acesso
       - TZ=America/Sao_Paulo
+      # Defina como "true" se quiser receber um aviso a cada rodada de sucesso.
+      # Se deixar "false" ou omitir, você só receberá alertas quando algo quebrar.
+      # - NOTIFY_SUCCESS=true
       # --- NOTIFICAÇÕES (Opcionais) ---
       # Para usar Discord/Slack:
       # - WEBHOOK_URL=https://discord.com/api/webhooks/...
