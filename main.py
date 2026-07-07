@@ -324,14 +324,18 @@ if __name__ == "__main__":
     fim_execucao = time.time()
     duracao_segundos = fim_execucao - inicio_execucao
     
-    print("=================================================")
+    # Define a variável tempo_str corretamente antes de usar
     if duracao_segundos >= 60:
         minutos = int(duracao_segundos // 60)
         segundos = duracao_segundos % 60
-        print(f"⏱️ Tempo total de execução: {minutos}m {segundos:.2f}s")
+        tempo_str = f"{minutos}m {segundos:.2f}s"
     else:
-        print(f"⏱️ Tempo total de execução: {duracao_segundos:.2f} segundos")
+        tempo_str = f"{duracao_segundos:.2f} segundos"
+        
+    print("=================================================")
+    print(f"⏱️ Tempo total de execução: {tempo_str}")
     print("=================================================")
 
+    # Agora o Python sabe quem é o tempo_str!
     msg_sucesso = f"Sincronização concluída com sucesso em {tempo_str}."
     notificar_sucesso(msg_sucesso)
