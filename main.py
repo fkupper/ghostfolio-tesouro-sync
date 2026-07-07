@@ -25,13 +25,10 @@ def autenticar_ghostfolio():
         try:
             response = requests.post(url_auth, json=payload, timeout=10)
             
-            # Se deu certo (Status 201 Created ou 200 OK)
             if response.status_code in [200, 201]:
                 print("✅ Autenticação bem-sucedida!")
                 return response.json().get("authToken")
                 
-            # Se deu erro, pega só um pedacinho da resposta para não poluir
-            # Limita a 100 caracteres e remove quebras de linha de HTML
             erro_resumo = response.text[:100].replace('\n', ' ')
             
             msg_aviso = f"Tentativa {tentativa}/{max_tentativas} falhou (Status {response.status_code}): {erro_resumo}..."
@@ -40,12 +37,10 @@ def autenticar_ghostfolio():
         except requests.exceptions.RequestException as e:
             print(f"⏳ Tentativa {tentativa}/{max_tentativas} falhou por erro de conexão: {e}")
             
-        # Se não for a última tentativa, espera antes de tentar de novo
         if tentativa < max_tentativas:
             print(f"   Aguardando {tempo_espera}s para o Ghostfolio iniciar...")
             time.sleep(tempo_espera)
 
-    # Se chegou aqui, esgotou todas as tentativas
     erro_fatal = "❌ Falha crítica: Não foi possível autenticar no Ghostfolio após várias tentativas. O servidor pode estar offline."
     notificar_erro(erro_fatal)
     return None
