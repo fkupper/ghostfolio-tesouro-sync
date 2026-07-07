@@ -3,11 +3,9 @@ import glob
 import pandas as pd
 import requests
 import json
+import time
 from datetime import datetime
 
-# ==========================================
-# 1. VARIÁVEIS DE AMBIENTE
-# ==========================================
 GHOSTFOLIO_URL = os.getenv("GHOSTFOLIO_URL", "http://localhost:3333").rstrip('/')
 GHOSTFOLIO_TOKEN = os.getenv("GHOSTFOLIO_TOKEN")
 
@@ -15,24 +13,42 @@ GHOSTFOLIO_TOKEN = os.getenv("GHOSTFOLIO_TOKEN")
 CKAN_PACKAGE_ID = "df56aa42-484a-4a59-8184-7676580c81e3"
 
 def autenticar_ghostfolio():
-    """Troca o Security Token por um JWT de sessão válido"""
     print("🔐 Autenticando no Ghostfolio...")
-    auth_url = f"{GHOSTFOLIO_URL}/api/v1/auth/anonymous"
+    url_auth = f"{GHOSTFOLIO_URL}/api/v1/auth/anonymous"
     
-    payload = {"accessToken": GHOSTFOLIO_TOKEN}
+    payload = {"accessToken": GHOSTFOLIO_TOKEN} if GHOSTFOLIO_TOKEN else {}
     
-    try:
-        response = requests.post(auth_url, json=payload)
-        response.raise_for_status()
-        
-        jwt_token = response.json().get('authToken')
-        print("✅ Autenticação bem-sucedida!")
-        return jwt_token
-        
-    except Exception as e:
-        erro_msg = response.text if 'response' in locals() else e
-        notificar_erro(f"❌ Erro ao autenticar no Ghostfolio: {erro_msg}")
-        return None
+    max_tentativas = 5
+    tempo_espera = 15 # segundos
+    
+    for tentativa in range(1, max_tentativas + 1):
+        try:
+            response = requests.post(url_auth, json=payload, timeout=10)
+            
+            # Se deu certo (Status 201 Created ou 200 OK)
+            if response.status_code in [200, 201]:
+                print("✅ Autenticação bem-sucedida!")
+                return response.json().get("authToken")
+                
+            # Se deu erro, pega só um pedacinho da resposta para não poluir
+            # Limita a 100 caracteres e remove quebras de linha de HTML
+            erro_resumo = response.text[:100].replace('\n', ' ')
+            
+            msg_aviso = f"Tentativa {tentativa}/{max_tentativas} falhou (Status {response.status_code}): {erro_resumo}..."
+            print(f"⏳ {msg_aviso}")
+            
+        except requests.exceptions.RequestException as e:
+            print(f"⏳ Tentativa {tentativa}/{max_tentativas} falhou por erro de conexão: {e}")
+            
+        # Se não for a última tentativa, espera antes de tentar de novo
+        if tentativa < max_tentativas:
+            print(f"   Aguardando {tempo_espera}s para o Ghostfolio iniciar...")
+            time.sleep(tempo_espera)
+
+    # Se chegou aqui, esgotou todas as tentativas
+    erro_fatal = "❌ Falha crítica: Não foi possível autenticar no Ghostfolio após várias tentativas. O servidor pode estar offline."
+    notificar_erro(erro_fatal)
+    return None
 
 def obter_ativos_tesouro_ghostfolio(jwt_token):
     print("🔍 Consultando ativos manuais no Ghostfolio...")
@@ -209,17 +225,42 @@ def sincronizar_ativo(ativo_ghostfolio, df_historico_completo, jwt_token):
         notificar_erro(f"❌ Falha na sincronização de {simbolo}: {response.status_code} - {response.text}")
         
 def notificar_erro(mensagem):
-    """Envia uma notificação caso as variáveis de ambiente estejam configuradas"""
+    enviar_notificacao(mensagem, tipo="error")
+
+def notificar_sucesso(mensagem):
+    enviar_notificacao(mensagem, tipo="success")
+
+def enviar_notificacao(mensagem, tipo="success"):
+    """
+    Envia uma notificação caso as variáveis de ambiente estejam configuradas.
+    tipo: "error" (padrão) ou "success"
+    """
     print(mensagem)
+    if tipo == "success":
+        notify_success_env = os.getenv("NOTIFY_SUCCESS", "false").lower()
+        if notify_success_env != "true":
+            return
+
+    if tipo == "error":
+        titulo = "Erro Sincronização Tesouro"
+        prioridade = "high"
+        tags_ntfy = "rotating_light,ghost"
+        prefixo_msg = "🚨 *Erro no Tesouro-Ghostfolio:*\n"
+        prefixo_msg_discord = "🚨 **Erro no Tesouro-Ghostfolio:**\n"
+    else:
+        titulo = "Sucesso Sincronização Tesouro"
+        prioridade = "default"
+        tags_ntfy = "white_check_mark,ghost"
+        prefixo_msg = "✅ *Sucesso no Tesouro-Ghostfolio:*\n"
+        prefixo_msg_discord = "✅ **Sucesso no Tesouro-Ghostfolio:**\n"
+
     # 1. Tentativa via Webhook (Discord, Slack, etc)
     webhook_url = os.getenv("WEBHOOK_URL")
     if webhook_url:
         try:
-            # O Discord usa 'content', o Slack usa 'text'. 
-            # Vamos mandar os dois para garantir compatibilidade genérica.
             payload = {
-                "content": f"🚨 **Erro no Tesouro-Ghostfolio:**\n{mensagem}",
-                "text": f"🚨 *Erro no Tesouro-Ghostfolio:*\n{mensagem}"
+                "content": f"{prefixo_msg_discord}{mensagem}",
+                "text": f"{prefixo_msg}{mensagem}"
             }
             requests.post(webhook_url, json=payload, timeout=10)
         except Exception as e:
@@ -233,23 +274,22 @@ def notificar_erro(mensagem):
             url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
             payload = {
                 "chat_id": telegram_chat, 
-                "text": f"🚨 *Erro no Tesouro-Ghostfolio:*\n{mensagem}",
+                "text": f"{prefixo_msg}{mensagem}",
                 "parse_mode": "Markdown"
             }
             requests.post(url, json=payload, timeout=10)
         except Exception as e:
             print(f"⚠️ Falha ao notificar via Telegram: {e}")
 
-    # 3. Tentativa via ntfy (ntfy.sh ou Self-Hosted)
+    # 3. Tentativa via ntfy
     ntfy_url = os.getenv("NTFY_URL")
     if ntfy_url:
         try:
             headers = {
-                "Title": "Erro Sincronização Tesouro",
-                "Priority": "high",
-                "Tags": "rotating_light,ghost"
+                "Title": titulo,
+                "Priority": prioridade,
+                "Tags": tags_ntfy
             }
-            
             ntfy_token = os.getenv("NTFY_TOKEN")
             if ntfy_token:
                 headers["Authorization"] = f"Bearer {ntfy_token}"
@@ -257,11 +297,13 @@ def notificar_erro(mensagem):
             requests.post(ntfy_url, data=mensagem.encode('utf-8'), headers=headers, timeout=10)
         except Exception as e:
             print(f"⚠️ Falha ao notificar via ntfy: {e}")
-            
+
 # ==========================================
 # EXECUÇÃO PRINCIPAL
 # ==========================================
 if __name__ == "__main__":
+    inicio_execucao = time.time()
+    
     if not GHOSTFOLIO_TOKEN:
         print("❌ ERRO FATAL: Variável de ambiente GHOSTFOLIO_TOKEN não configurada.")
         exit(1)
@@ -283,3 +325,18 @@ if __name__ == "__main__":
         if df_historico is not None:
             for ativo in ativos_alvo:
                 sincronizar_ativo(ativo, df_historico, jwt_sessao)
+
+    fim_execucao = time.time()
+    duracao_segundos = fim_execucao - inicio_execucao
+    
+    print("=================================================")
+    if duracao_segundos >= 60:
+        minutos = int(duracao_segundos // 60)
+        segundos = duracao_segundos % 60
+        print(f"⏱️ Tempo total de execução: {minutos}m {segundos:.2f}s")
+    else:
+        print(f"⏱️ Tempo total de execução: {duracao_segundos:.2f} segundos")
+    print("=================================================")
+
+    msg_sucesso = f"Sincronização concluída com sucesso em {tempo_str}."
+    notificar_sucesso(msg_sucesso)
