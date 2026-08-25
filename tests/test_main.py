@@ -182,4 +182,3 @@ def test_sincronizar_ativo_renda_mais(requests_mock):
     assert requests_mock.last_request.json() == {
         "marketData": [{"date": "2024-08-20", "marketPrice": 950.50}]
     }
-

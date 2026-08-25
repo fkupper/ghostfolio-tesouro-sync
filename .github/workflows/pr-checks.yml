@@ -1,6 +1,8 @@
-name: Manual PR Checks
+name: PR Checks
 
 on:
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch: 
 
 jobs:
