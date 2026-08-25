@@ -196,6 +196,12 @@ def sincronizar_ativo(ativo_ghostfolio, df_historico_completo, jwt_token):
         "NTN-B": "Tesouro IPCA+ com Juros Semestrais",
         "LTN": "Tesouro Prefixado",
         "NTN-F": "Tesouro Prefixado com Juros Semestrais",
+        "NTN-B1": "Tesouro Renda+ Aposentadoria Extra",
+        "NTN-C": "Tesouro IGPM+ com Juros Semestrais",
+        "Tesouro Renda+": "Tesouro Renda+ Aposentadoria Extra",
+        "Renda+": "Tesouro Renda+ Aposentadoria Extra",
+        "Tesouro Educa+": "Tesouro Educa+",
+        "Educa+": "Tesouro Educa+",
     }
 
     tipo_no_csv = mapa_nomes.get(tipo, tipo)
