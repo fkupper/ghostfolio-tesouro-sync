@@ -41,6 +41,7 @@ Para que o script saiba quais títulos atualizar, você deve criar os ativos man
 **Exemplos reais:**
 * Tesouro Selic 2027: `TD.LFT.01-03-2027`
 * Tesouro IPCA+ 2045: `TD.NTN-B_Principal.15-05-2045`
+* Tesouro RendA+ 2040: `TD.NTN-B1.15-12-2059` *(nota: para RendA+/Educa+, a data no CSV do Tesouro é a data final de amortização)*
 
 **Tabela de Tipos de Títulos:**
 * Tesouro Selic = `LFT`
@@ -48,6 +49,9 @@ Para que o script saiba quais títulos atualizar, você deve criar os ativos man
 * Tesouro IPCA+ com Juros Semestrais = `NTN-B`
 * Tesouro Prefixado = `LTN`
 * Tesouro Prefixado com Juros Semestrais = `NTN-F`
+* Tesouro RendA+ = `NTN-B1` ou `Renda+`
+* Tesouro Educa+ = `Educa+`
+* Tesouro IGPM+ com Juros Semestrais = `NTN-C`
 
 ---
 

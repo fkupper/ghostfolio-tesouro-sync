@@ -124,3 +124,62 @@ def test_obter_ativos_com_mapping_json(mock_exists, requests_mock):
 
     assert ativos_resultado[0]["tipo_titulo"] == "LFT"
     assert ativos_resultado[0]["data_vencimento"] == "01/03/2027"
+
+
+def test_obter_ativos_renda_mais(requests_mock):
+    """Testa se o ativo NTN-B1 (Tesouro Renda+) é extraído corretamente"""
+    url_ativos = f"{GHOSTFOLIO_URL}/api/v1/asset-profiles"
+    mock_resposta_ativos = {
+        "assetProfiles": [
+            {"symbol": "GF_TD.NTN-B1.15-12-2059"},
+        ]
+    }
+    requests_mock.get(url_ativos, json=mock_resposta_ativos, status_code=200)
+
+    ativos_resultado = obter_ativos_tesouro_ghostfolio("jwt_token_falso")
+
+    assert len(ativos_resultado) == 1
+    assert ativos_resultado[0]["symbol_original"] == "GF_TD.NTN-B1.15-12-2059"
+    assert ativos_resultado[0]["tipo_titulo"] == "NTN-B1"
+    assert ativos_resultado[0]["data_vencimento"] == "15/12/2059"
+
+
+def test_sincronizar_ativo_renda_mais(requests_mock):
+    """Testa a sincronização de um ativo NTN-B1 (Tesouro Renda+ Aposentadoria Extra)"""
+    import pandas as pd
+    from main import sincronizar_ativo
+
+    endpoint = f"{GHOSTFOLIO_URL}/api/v1/market-data/MANUAL/GF_TD.NTN-B1.15-12-2059"
+    requests_mock.post(endpoint, json={"status": "ok"}, status_code=201)
+
+    df_historico = pd.DataFrame(
+        {
+            "Tipo Titulo": [
+                "Tesouro Renda+ Aposentadoria Extra",
+                "Tesouro Selic",
+            ],
+            "Data Vencimento": [
+                pd.to_datetime("15/12/2059", format="%d/%m/%Y"),
+                pd.to_datetime("01/03/2027", format="%d/%m/%Y"),
+            ],
+            "Data Base": [
+                pd.to_datetime("20/08/2024", format="%d/%m/%Y"),
+                pd.to_datetime("20/08/2024", format="%d/%m/%Y"),
+            ],
+            "PU Compra Manha": [950.50, 14000.0],
+        }
+    )
+
+    ativo = {
+        "symbol_original": "GF_TD.NTN-B1.15-12-2059",
+        "tipo_titulo": "NTN-B1",
+        "data_vencimento": "15/12/2059",
+    }
+
+    sincronizar_ativo(ativo, df_historico, "jwt_token_falso")
+
+    assert requests_mock.called
+    assert requests_mock.last_request.json() == {
+        "marketData": [{"date": "2024-08-20", "marketPrice": 950.50}]
+    }
+
